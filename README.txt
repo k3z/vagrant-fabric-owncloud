@@ -2,7 +2,6 @@
 Vagrant + fabric bootstrap
 ==========================
 
-
 Prerequisites
 =============
 
@@ -36,7 +35,7 @@ Execute *fabric* install :
 
 .. code-block:: sh
 
-    $ fab vagrant install
+    $ bin/fab vagrant install
     [127.0.0.1] Executing task 'install'
     [127.0.0.1] run: whoami
     [127.0.0.1] out: root
