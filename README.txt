@@ -74,7 +74,7 @@ Execute *fabric* install :
 Notes
 =====
 
-In ``Vagrantfile`` have set mac address :
+In ``Vagrantfile`` I have set mac address :
  
 ::
 
