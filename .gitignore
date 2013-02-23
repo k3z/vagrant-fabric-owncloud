@@ -8,3 +8,4 @@ eggs/
 *.pyc
 parts/
 .vagrant
+src/

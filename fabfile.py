@@ -1,9 +1,37 @@
 import os
-from fabric.api import task, run, env, cd, settings, puts, local  #NOQA
+from fabric.api import task, run, env, cd, settings
 from fabtools.vagrant import ssh_config, _settings_dict
 import fabtools  # NOQA
 from fabtools import files
 from fabtools import require
+
+import requests
+
+VIRTUALHOST_TPL = """
+{{default aliases=[] }}
+{{default allow_override=None }}
+<VirtualHost *:80>
+    ServerName {{hostname}}
+    {{for a in aliases}}
+    ServerAlias {{a}}
+    {{endfor}}
+
+    DocumentRoot {{document_root}}
+
+    <Directory {{document_root}}>
+        Options Indexes FollowSymLinks MultiViews
+
+        {{if allow_override}}
+        AllowOverride {{allow_override}}
+        {{else}}
+        AllowOverride All
+        {{endif}}
+
+        Order allow,deny
+        allow from all
+    </Directory>
+</VirtualHost>
+"""
 
 
 @task
@@ -31,7 +59,6 @@ def prod():
 def config():
     env['owncloud'] = {
         'unix_user': 'owncloud',
-        'unix_user_password': os.environ.get('USER_PASSWORD', 'password'),
         'url': 'cloud.domain.tld',
         'url_aliases': [],
 
@@ -41,7 +68,6 @@ def config():
 
         'admin_user': 'admin',
         'admin_password': os.environ.get('OWNCLOUD_ADMIN_PASSWORD', 'password'),
-        'admin_email': 'mail@domain.tld'
     }
 
 
@@ -61,8 +87,6 @@ def _add_user(*args, **kwargs):
 
 @task
 def install():
-    run('whoami')
-
     fabtools.require.system.locale('fr_FR.UTF-8')
 
     fabtools.deb.update_index()
@@ -71,8 +95,6 @@ def install():
         'mysql-server/root_password_again': ('password', env['mysql_password']),
     })
     require.deb.packages([
-        'build-essential',
-        'devscripts',
         'locales',
         'apache2',
         'mysql-server',
@@ -80,17 +102,12 @@ def install():
         'php5',
         'php5-mysql',
         'php5-gd',
-        'libapache2-mod-php5',
-        'vim',
-        'mc',
-        'curl',
-        'libmysqlclient-dev',
-        'python-distribute'
+        'libapache2-mod-php5'
     ])
 
     _add_user(
         name=env['owncloud']['unix_user'],
-        password=env['owncloud']['unix_user_password'],
+        password=None,
         shell='/bin/bash'
     )
 
@@ -118,59 +135,38 @@ def install():
             run('chmod ug+rwX www/ -R')
             run('chmod ugo+rwX www/config -R')
 
-    VIRTUALHOST_FILE = '/etc/apache2/sites-available/' + env['owncloud']['url']
-
-    require.files.template_file(
+    run("a2enmod rewrite")
+    run('rm -f /etc/apache2/sites-enabled/000-default')
+    require.apache.site(
+        env['owncloud']['url'],
         template_contents=VIRTUALHOST_TPL,
-        path=VIRTUALHOST_FILE,
-        context={
-            'server_name': env['owncloud']['url'],
-            'port': 80,
-            'document_root': '/home/%s/prod/www/' % env['owncloud']['unix_user'],
-            'server_admin': env['owncloud']['admin_email'],
-        },
-        owner='root',
-        group='root',
+        hostname=env['owncloud']['url'],
+        document_root='/home/%s/prod/www/' % env['owncloud']['unix_user'],
+        enable=True
+    )
+    fabtools.apache.restart()
+
+    s = requests.Session()
+    s.post(
+        'http://%s/index.php' % env['owncloud']['url'],
+        data={
+            'install': 'true',
+            'adminlogin': env['owncloud']['admin_user'],
+            'adminpass': env['owncloud']['admin_password'],
+            'directory': '/home/owncloud/prod/www/data',
+            'dbtype': 'mysql',
+            'dbuser': env['owncloud']['database_user'],
+            'dbpass': env['owncloud']['database_password'],
+            'dbname': env['owncloud']['database_name'],
+            'dbhost': 'localhost'
+        }
     )
 
-    if not fabtools.files.is_link(VIRTUALHOST_FILE):
-        run('rm -f /etc/apache2/sites-enabled/000-default')
-        run("a2ensite " + env['owncloud']['url'])
 
-    if not fabtools.files.is_link('/etc/apache2/mods-enabled/rewrite.load'):
-        run("a2enmod rewrite")
-
-    run("/etc/init.d/apache2 restart")
-
-    #  TODO Owncloud install script
-
-
-VIRTUALHOST_TPL = """
-#
-# Template file managed by Fabtools
-#
-
-<VirtualHost *:%(port)d>
-    ServerAdmin %(server_admin)s
-
-    DocumentRoot %(document_root)s
-
-    ServerName %(server_name)s
-
-    ErrorLog ${APACHE_LOG_DIR}/%(server_name)s-error_log
-    CustomLog ${APACHE_LOG_DIR}/%(server_name)s-access_log common
-
-    <Directory %(document_root)s>
-        <IfModule mod_rewrite.c>
-            Options +FollowSymLinks
-        </IfModule>
-
-        DirectoryIndex index.php
-        AllowOverride All
-
-        Order allow,deny
-        Allow from all
-    </Directory>
-
-</VirtualHost>
-"""
+@task
+def uninstall():
+    fabtools.mysql.drop_database(env['owncloud']['database_name'])
+    fabtools.mysql.drop_user(env['owncloud']['database_user'])
+    run('rm -rf /home/%s/prod/' % env['owncloud']['unix_user'])
+    fabtools.apache.disable_site(env['owncloud']['url'])
+    fabtools.apache.restart()
