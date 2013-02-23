@@ -3,3 +3,8 @@
 bin/
 build/
 develop-eggs/
+production_env.sh
+eggs/
+*.pyc
+parts/
+.vagrant

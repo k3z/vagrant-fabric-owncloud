@@ -22,11 +22,11 @@ Vagrant::Config.run do |config|
   # any other machines on the same network, but cannot be accessed (through this
   # network interface) by any external networks.
   # config.vm.network :hostonly, "192.168.33.10"
-  config.vm.host_name = "vagrant.example.com"
-  config.hosts.name = "vagrant.example.com"
-  config.hosts.aliases = "example.com"
+  config.vm.host_name = "cloud.domain.tld"
+  config.hosts.name = "cloud.domain.tld"
+  config.hosts.aliases = "cloud.domain.tld"
 
-  config.vm.network :hostonly, "192.168.33.10", :mac => "080027e5f699"
+  config.vm.network :hostonly, "192.168.33.11", :mac => "080027e5f699"
 
   # Assign this VM to a bridged network, allowing you to connect directly to a
   # network using the host's network device. This makes the VM appear as another
@@ -68,7 +68,7 @@ Vagrant::Config.run do |config|
   # end
 
   # Enable provisioning with chef solo, specifying a cookbooks path, roles
-  # path, and data_bags path (all relative to this Vagrantfile), and adding 
+  # path, and data_bags path (all relative to this Vagrantfile), and adding
   # some recipes and/or roles.
   #
   # config.vm.provision :chef_solo do |chef|
