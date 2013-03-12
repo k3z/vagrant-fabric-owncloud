@@ -153,7 +153,7 @@ def install():
             'install': 'true',
             'adminlogin': env['owncloud']['admin_user'],
             'adminpass': env['owncloud']['admin_password'],
-            'directory': '/home/owncloud/prod/www/data',
+            'directory': '/home/%s/prod/www/data' % env['owncloud']['unix_user'],
             'dbtype': 'mysql',
             'dbuser': env['owncloud']['database_user'],
             'dbpass': env['owncloud']['database_password'],

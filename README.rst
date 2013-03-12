@@ -18,7 +18,7 @@ Prerequisites On Ubuntu 12.10
 
 ::
 
-    $ sudo apt-get install virtualbox rubygem1.8
+    $ sudo apt-get install virtualbox rubygems1.8
     $ gem install vagrant vagrant-hostmaster
 
 
